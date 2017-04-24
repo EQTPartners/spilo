@@ -21,8 +21,7 @@ PROVIDER_GOOGLE = "google"
 PROVIDER_LOCAL = "local"
 PROVIDER_UNSUPPORTED = "unsupported"
 USE_KUBERNETES = os.environ.get('KUBERNETES_SERVICE_HOST') is not None
-MEMORY_LIMIT_IN_BYTES_PATH="/sys/fs/cgroup/memory/memory.max_usage_in_bytes"
-
+MEMORY_LIMIT_IN_BYTES_PATH = '/sys/fs/cgroup/memory/memory.limit_in_bytes'
 
 def parse_args():
     sections = ['all', 'patroni', 'patronictl', 'certificate', 'wal-e', 'crontab', 'ldap', 'pam-oauth2']
@@ -188,15 +187,10 @@ postgresql:
     on_restart: {{CALLBACK_SCRIPT}}
     on_role_change: {{CALLBACK_SCRIPT}}
  {{/CALLBACK_SCRIPT}}
+{{#USE_WALE}}
   create_replica_method:
-    {{#USE_WALE}}
     - wal_e
     - basebackup_fast_xlog
-    {{/USE_WALE}}
-    {{^USE_WALE}}
-    - basebackup
-    {{/USE_WALE}}
- {{#USE_WALE}}
   wal_e:
     command: patroni_wale_restore
     envdir: {{WALE_ENV_DIR}}
