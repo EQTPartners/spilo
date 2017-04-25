@@ -128,7 +128,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 
     && pip3 install pip --upgrade \
     && pip3 install --upgrade \
-        gcloud boto wal-e==$WALE_VERSION
+        gcloud boto wal-e==$WALE_VERSION \
 
     # Use https://github.com/joar/patroni/tree/bugfix/wale-backup-list-output-parsing
     && pip3 install --upgrade \
