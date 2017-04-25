@@ -114,7 +114,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 ENV PATH=$PATH:/usr/lib/postgresql/${PGVERSION}/bin
 
 # Install patroni and WAL-e
-ENV PATRONIVERSION=1.2.5-joar.0
+ENV PATRONIVERSION=1.2.5-joar.1
 ENV WALE_VERSION=1.0.3
 RUN export DEBIAN_FRONTEND=noninteractive \
     export BUILD_PACKAGES="python3-pip" \
@@ -128,8 +128,11 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 
     && pip3 install pip --upgrade \
     && pip3 install --upgrade \
-        git+https://github.com/joar/patroni.git@bugfix/wale-backup-list-output-parsing \
         gcloud boto wal-e==$WALE_VERSION
+
+    # Use https://github.com/joar/patroni/tree/bugfix/wale-backup-list-output-parsing
+    && pip3 install --upgrade \
+        'git+https://github.com/joar/patroni.git@57c419b2f1240d4c5496c7de8a6d7d19c23a053e#egg=patroni' \
 
     # https://github.com/wal-e/wal-e/issues/318
     && sed -i 's/^\(    for i in range(0,\) num_retries):.*/\1 100):/g' /usr/local/lib/python3.5/dist-packages/boto/utils.py \
