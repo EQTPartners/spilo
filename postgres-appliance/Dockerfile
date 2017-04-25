@@ -132,7 +132,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 
     # Use https://github.com/joar/patroni/tree/bugfix/wale-backup-list-output-parsing
     && pip3 install --upgrade \
-        'git+https://github.com/joar/patroni.git@57c419b2f1240d4c5496c7de8a6d7d19c23a053e#egg=patroni' \
+        'git+https://github.com/joar/patroni.git@afdee3eaa803cac1ce12b45d68c2665df933d1dc#egg=patroni' \
 
     # https://github.com/wal-e/wal-e/issues/318
     && sed -i 's/^\(    for i in range(0,\) num_retries):.*/\1 100):/g' /usr/local/lib/python3.5/dist-packages/boto/utils.py \
