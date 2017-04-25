@@ -117,7 +117,7 @@ ENV PATH=$PATH:/usr/lib/postgresql/${PGVERSION}/bin
 ENV PATRONIVERSION=1.2.5-joar.1
 ENV WALE_VERSION=1.0.3
 RUN export DEBIAN_FRONTEND=noninteractive \
-    export BUILD_PACKAGES="python3-pip" \
+    export BUILD_PACKAGES="python3-pip git" \
     && apt-get update \
     && apt-get install -y \
             # Required for wal-e
