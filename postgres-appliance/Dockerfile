@@ -18,7 +18,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PostgreSQL
-ENV PGVERSION=9.6 PGOLDVERSIONS="9.3 9.4 9.5"
+ENV PGVERSION=9.6 PGOLDVERSIONS=""
 RUN export DEBIAN_FRONTEND=noninteractive \
     && export BUILD_PACKAGES="gcc libc6-dev dpkg-dev make pgxnclient libedit-dev zlib1g-dev libssl-dev libselinux1-dev libkrb5-dev libxslt1-dev libxml2-dev libpam0g-dev libcurl4-openssl-dev libprotobuf-c-dev liblwgeom-dev pkg-config libproj-dev" \
 
