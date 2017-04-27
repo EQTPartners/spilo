@@ -115,7 +115,7 @@ ENV PATH=$PATH:/usr/lib/postgresql/${PGVERSION}/bin
 
 # Install patroni and WAL-e
 ENV PATRONIVERSION=1.2.5-joar.1
-ENV PATRONI_COMMIT=ebce4de1ad47eb5f7a8311228dfbac3b37bcc016
+ENV PATRONI_COMMIT=8cac8e7f111454fcf1f08941ae20361a1b279e06
 ENV WALE_VERSION=1.0.3
 RUN export DEBIAN_FRONTEND=noninteractive \
     export BUILD_PACKAGES="python3-pip git" \
