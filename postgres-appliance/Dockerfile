@@ -155,6 +155,13 @@ RUN curl -L https://github.com/coreos/etcd/releases/download/v${ETCDVERSION}/etc
 RUN curl -L https://raw.githubusercontent.com/zalando/pg_view/2ea99479460d81361bdb7601a1564072ddd584ac/pg_view.py \
     | sed -e 's/env python/env python3/g' > /usr/local/bin/pg_view.py && chmod +x /usr/local/bin/pg_view.py
 
+# Install stackdriver logging agent
+RUN curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh \
+    && bash install-logging-agent.sh \
+    && rm install-logging-agent.sh
+
+ADD fluentd.conf /etc/google-fluentd/config.d/patroni-postgres.conf
+
 ENV PGHOME=/home/postgres
 ENV PGROOT=$PGHOME/pgdata/pgroot
 ENV PGDATA=$PGROOT/data
