@@ -23,6 +23,7 @@ PROVIDER_UNSUPPORTED = "unsupported"
 USE_KUBERNETES = os.environ.get('KUBERNETES_SERVICE_HOST') is not None
 MEMORY_LIMIT_IN_BYTES_PATH = '/sys/fs/cgroup/memory/memory.limit_in_bytes'
 
+
 def parse_args():
     sections = ['all', 'patroni', 'patronictl', 'certificate', 'wal-e', 'crontab', 'ldap', 'pam-oauth2']
     argp = argparse.ArgumentParser(description='Configures Spilo',
@@ -428,8 +429,8 @@ options = NO_SSLv2
 connect = {0}:{1}
 client = yes
 accept = 389
-verify = 3
-CAfile = /etc/stunnel/chain.pem
+verify = 2
+CApath = /etc/ssl/certs
 """.format(host, port)
     write_file(stunnel_config, '/etc/stunnel/ldap.conf', overwrite)
 
