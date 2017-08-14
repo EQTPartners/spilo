@@ -25,7 +25,7 @@ MEMORY_LIMIT_IN_BYTES_PATH = '/sys/fs/cgroup/memory/memory.limit_in_bytes'
 
 
 def parse_args():
-    sections = ['all', 'patroni', 'patronictl', 'certificate', 'wal-e', 'crontab', 'ldap', 'pam-oauth2']
+    sections = ['all', 'patroni', 'patronictl', 'certificate', 'wal-e', 'crontab', 'ldap', 'pam-oauth2', 'pgbouncer']
     argp = argparse.ArgumentParser(description='Configures Spilo',
                                    epilog="Choose from the following sections:\n\t{}".format('\n\t'.join(sections)),
                                    formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -135,7 +135,6 @@ bootstrap:
         log_disconnections: 'on'
         log_statement: 'ddl'
         log_temp_files: 0
-        shared_preload_libraries: pg_stat_statements
         track_functions: all
         checkpoint_completion_target: 0.9
         autovacuum_max_workers: 5
@@ -153,6 +152,7 @@ restapi:
   listen: 0.0.0.0:{{APIPORT}}
   connect_address: {{instance_data.ip}}:{{APIPORT}}
 postgresql:
+  use_unix_socket: true
   name: '{{instance_data.id}}'
   scope: *scope
   listen: 0.0.0.0:{{PGPORT}}
@@ -170,6 +170,8 @@ postgresql:
     ssl: 'on'
     ssl_cert_file: {{SSL_CERTIFICATE_FILE}}
     ssl_key_file: {{SSL_PRIVATE_KEY_FILE}}
+    shared_preload_libraries: 'bg_mon,pg_stat_statements'
+    bg_mon.listen_address: '0.0.0.0'
   {{#USE_WALE}}
   recovery_conf:
     restore_command: envdir "{{WALE_ENV_DIR}}" /wale_restore_command.sh "%f" "%p"
@@ -185,7 +187,6 @@ postgresql:
   callbacks:
     on_start: {{CALLBACK_SCRIPT}}
     on_stop: {{CALLBACK_SCRIPT}}
-    on_restart: {{CALLBACK_SCRIPT}}
     on_role_change: {{CALLBACK_SCRIPT}}
  {{/CALLBACK_SCRIPT}}
 {{#USE_WALE}}
@@ -281,7 +282,10 @@ def get_placeholders(provider):
         if 'WAL_S3_BUCKET' in placeholders:
             placeholders['USE_WALE'] = True
         if not USE_KUBERNETES:  # AWS specific callback to tag the instances with roles
-            placeholders['CALLBACK_SCRIPT'] = 'patroni_aws'
+            if placeholders.get('EIP_ALLOCATION'):
+                placeholders['CALLBACK_SCRIPT'] = 'python3 /callback_aws.py {0}'.format(placeholders['EIP_ALLOCATION'])
+            else:
+                placeholders['CALLBACK_SCRIPT'] = 'patroni_aws'
     elif provider == PROVIDER_GOOGLE and 'WAL_GCS_BUCKET' in placeholders:
         placeholders['USE_WALE'] = True
         placeholders.setdefault('GOOGLE_APPLICATION_CREDENTIALS', '')
@@ -463,6 +467,31 @@ def write_pam_oauth2_configuration(placeholders, overwrite):
     write_file(pam_oauth2_config, '/etc/pam.d/postgresql', overwrite)
 
 
+def write_pgbouncer_configuration(placeholders, overwrite):
+    pgbouncer_config = placeholders.get('PGBOUNCER_CONFIGURATION')
+    if not pgbouncer_config:
+        return logging.info('No PGBOUNCER_CONFIGURATION was specified, skipping')
+
+    write_file(pgbouncer_config, '/etc/pgbouncer/pgbouncer.ini', overwrite)
+
+    pgbouncer_auth = placeholders.get('PGBOUNCER_AUTHENTICATION') or placeholders.get('PGBOUNCER_AUTH')
+    if pgbouncer_auth:
+        write_file(pgbouncer_auth, '/etc/pgbouncer/userlist.txt', overwrite)
+
+    supervisord_config = """\
+[program:pgbouncer]
+user=postgres
+autostart=1
+priority=500
+directory=/
+command=env -i /usr/sbin/pgbouncer /etc/pgbouncer/pgbouncer.ini
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+redirect_stderr=true
+"""
+    write_file(supervisord_config, '/etc/supervisor/conf.d/pgbouncer.conf', overwrite)
+
+
 def main():
     debug = os.environ.get('DEBUG', '') in ['1', 'true', 'on', 'ON']
     args = parse_args()
@@ -517,6 +546,8 @@ def main():
             write_ldap_configuration(placeholders, args['force'])
         elif section == 'pam-oauth2':
             write_pam_oauth2_configuration(placeholders, args['force'])
+        elif section == 'pgbouncer':
+            write_pgbouncer_configuration(placeholders, args['force'])
         else:
             raise Exception('Unknown section: {}'.format(section))
 

@@ -20,7 +20,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 # Install PostgreSQL
 ENV PGVERSION=9.6 PGOLDVERSIONS="9.3 9.4 9.5"
 RUN export DEBIAN_FRONTEND=noninteractive \
-    && export BUILD_PACKAGES="gcc libc6-dev dpkg-dev make pgxnclient libedit-dev zlib1g-dev libssl-dev libselinux1-dev libkrb5-dev libxslt1-dev libxml2-dev libpam0g-dev libcurl4-openssl-dev libprotobuf-c-dev liblwgeom-dev pkg-config libproj-dev libevent-dev" \
+    && export BUILD_PACKAGES="devscripts build-essential pgxnclient libedit-dev zlib1g-dev libssl-dev libselinux1-dev libkrb5-dev libxslt1-dev libxml2-dev libpam0g-dev libcurl4-openssl-dev libprotobuf-c-dev liblwgeom-dev pkg-config libproj-dev libevent-dev" \
 
     # Add PGDG repositories
     && export DISTRIB_CODENAME=$(sed -n 's/DISTRIB_CODENAME=//p' /etc/lsb-release) \
@@ -48,10 +48,10 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get install -y libprotobuf-c1 libevent-2.0 $BUILD_PACKAGES \
 
     # prepare bg_mon sources
-    && export BG_MON_COMMIT=487066980b513a51cb4123d6e3757ec4c7a82247 \
+    && export BG_MON_COMMIT=796690f2bee2778321a45233fe4012fc06b75f02 \
     && curl -s -L https://github.com/CyberDem0n/bg_mon/archive/$BG_MON_COMMIT.tar.gz | tar xz \
 
-    && export DECODEBUFS_COMMIT=d9415fc78fa255d990ea2371720876bebe34ceb9 \
+    && export DECODEBUFS_COMMIT=d08a75593c68897600e10f5250133337624bcf63 \
     && curl -s -L https://github.com/debezium/postgres-decoderbufs/archive/$DECODEBUFS_COMMIT.tar.gz | tar xz \
 
     && for version in ${PGOLDVERSIONS} ${PGVERSION}; do \
@@ -93,6 +93,15 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 
     && apt-get install -y skytools3-ticker \
 
+    # patch, build and install pgbouncer
+    && mkdir pgbouncer && cd pgbouncer \
+    && apt-get source pgbouncer \
+    && cd $(ls -d pgbouncer-*) \
+    && curl -sL https://github.com/pgbouncer/pgbouncer/pull/127.diff | patch -p1 \
+    && debuild -b -uc -us \
+    && dpkg -i ../pgbouncer_*.deb \
+    && cd ../.. \
+
     # install pam_oauth2.so
     && export PAM_OAUTH_COMMIT=bed1f8d31840d1fda49365921449112a7421b8ca \
     && export JSMN_COMMIT=1682c32e9ae5990ddd0f0e907270a0f6dde5cbe9 \
@@ -113,26 +122,21 @@ RUN export DEBIAN_FRONTEND=noninteractive \
 ENV PATH=$PATH:/usr/lib/postgresql/${PGVERSION}/bin
 
 # Install patroni and WAL-e
-ENV PATRONIVERSION=1.2.5-joar.1
-ENV PATRONI_COMMIT=29c95afb4cd1c5e4f17939d70d8e4892fccb2c0a
+ENV PATRONIVERSION=1.3.3
 ENV WALE_VERSION=1.0.3
 RUN export DEBIAN_FRONTEND=noninteractive \
-    export BUILD_PACKAGES="python3-pip git" \
+    export BUILD_PACKAGES="python3-pip python3-dev gcc" \
     && apt-get update \
     && apt-get install -y \
             # Required for wal-e
             daemontools lzop \
             # Required for /usr/local/bin/patroni
-            python3 python3-setuptools python3-pystache python3-prettytable python3-six \
+            python3 python3-pystache python3-prettytable python3-six \
             ${BUILD_PACKAGES} \
 
-    && pip3 install pip --upgrade \
-    && pip3 install --upgrade \
-        gcloud boto wal-e==$WALE_VERSION \
-
-    # Use https://github.com/joar/patroni/tree/bugfix/wale-backup-list-output-parsing
-    && pip3 install --upgrade \
-        "git+https://github.com/joar/patroni.git@$PATRONI_COMMIT#egg=patroni" \
+    && pip3 install setuptools pip --upgrade \
+    && pip3 install --upgrade patroni==$PATRONIVERSION \
+            gcloud boto wal-e==$WALE_VERSION \
 
     # https://github.com/wal-e/wal-e/issues/318
     && sed -i 's/^\(    for i in range(0,\) num_retries):.*/\1 100):/g' /usr/local/lib/python3.5/dist-packages/boto/utils.py \
@@ -163,19 +167,17 @@ ENV WALE_ENV_DIR=$PGHOME/etc/wal-e.d/env
 # Set PGHOME as a login directory for the PostgreSQL user.
 RUN usermod -d $PGHOME -m postgres
 
-ARG SCM_SOURCE=
-
-ADD ${SCM_SOURCE} configure_spilo.py launch.sh postgres_backup.sh patroni_wait.sh post_init.sh _zmon_schema.dump callback_role.py basebackup.sh wale_restore_command.sh /
+ADD scm-source.json configure_spilo.py launch.sh postgres_backup.sh patroni_wait.sh post_init.sh _zmon_schema.dump callback_role.py basebackup.sh wale_restore_command.sh wal-e-wal-fetch.sh callback_aws.py /
 ADD supervisor.d /etc/supervisor/conf.d/
 ADD pgq_ticker.ini $PGHOME
 ADD motd /etc/
 RUN echo "source /etc/motd" >> /root/.bashrc
-RUN echo "export TERM=linux\nexport LC_ALL=C.UTF-8\nexport LANG=C.UTF-8" >> /etc/bash.bashrc
+RUN echo "export TERM=linux\nexport LC_ALL=C.UTF-8\nexport LANG=C.UTF-8\nexport EDITOR=vim" >> /etc/bash.bashrc
 RUN chmod 700 /postgres_*
 
 ENV ETCD_DISCOVERY_DOMAIN=postgres.acid.example.com LC_ALL=en_US.utf-8
 
 WORKDIR $PGHOME
-EXPOSE 5432 8008
+EXPOSE 5432 8008 8080
 RUN chown -R postgres:postgres /postgres_* $PGHOME
 CMD ["/bin/bash", "/launch.sh"]
